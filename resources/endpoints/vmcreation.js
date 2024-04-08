@@ -36,13 +36,13 @@ exports.handler = async (event) => {
 
             // Parameters for launching a new EC2 instance, including the AMI ID, instance type, and user data script.
             const params = {
-                ImageId: 'ami-0900fe555666598a2',
+                ImageId: 'ami-051f8a213df8bc089',
                 InstanceType: 't2.micro',
                 MinCount: 1,
                 MaxCount: 1,
-                IamInstanceProfile: {
-                    Name: "EC2S3AccessRole" // IAM Role as passed by lambda used to Access S3 buckets
-                },
+                // IamInstanceProfile: {
+                //     Name: "EC2S3AccessRole" // IAM Role as passed by lambda used to Access S3 buckets
+                // },
             };
 
             try {
