@@ -12,6 +12,7 @@ import { RemovalPolicy } from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3'
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam'
+import { Asset } from 'aws-cdk-lib/aws-s3-assets';
 
 
 export class RestApiCdkStack extends cdk.Stack {
@@ -60,7 +61,11 @@ export class RestApiCdkStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'BucketName', {
       value: news3Bucket.bucketName,
     });
-  
+
+    const fileAsset = new Asset(this, 'ScriptAsset', {
+      path: './script.sh'
+    });
+
 
     // Creating API Gateway
     const api = new RestApi(this, 'FileDataRestAPI', {
@@ -126,15 +131,18 @@ export class RestApiCdkStack extends cdk.Stack {
       entry: 'resources/endpoints/vmcreation.js',
       environment: {
           TABLE_NAME: dbTable.tableName,
+          SCRIPT_BUCKET : fileAsset.s3BucketName,
+          SCRIPT_S3_URL : fileAsset.s3ObjectUrl,
+          SCRIPT_S3_KEY: fileAsset.s3ObjectKey,
       }
   });
   // Add event source to the dynamodb stream
   dynamoDbStreamLambda.addEventSource(new cdk.aws_lambda_event_sources.DynamoEventSource(dbTable, {
       startingPosition: lambda.StartingPosition.TRIM_HORIZON,
-      batchSize: 5,
+      batchSize:1,
       bisectBatchOnError: true,
-      retryAttempts: 2,
-      enabled: true,
+      retryAttempts:0,
+      enabled:true,
   }));
   dbTable.grantStreamRead(dynamoDbStreamLambda);
 
