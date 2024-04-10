@@ -5,36 +5,34 @@ const { UserData } = require("aws-cdk-lib/aws-ec2");
 import { nanoid } from "nanoid";
 
 // Initialize the EC2 service interface object to interact with Amazon EC2.
-const ec2 = new EC2Client({});
+const ec2 = new EC2Client({region:'us-east-1'});
 // Initialize the DynamoDB DocumentClient to interact with DynamoDB in a more flexible way than the standard client.
 const dynamoDB = new DynamoDBClient({});
 
 // Retrieve DynamoDB Table Name environment variable
 const tableName = process.env.TABLE_NAME;
 const scriptBucket = process.env.SCRIPT_BUCKET;
-const scriptURL = process.env.SCRIPT_S3_URL;
 const scriptFileName = process.env.SCRIPT_S3_KEY;
+const ID = nanoid();
+const outPutFileName = "output.txt";
+let bname = "";
 
-// Lambda handler function invoked when dynamoDbStreamLambda is executed
+// Lambda handler function
 exports.handler = async (event) => {
-    //console.log("Event: ", JSON.stringify(event, null, 2));
-    for (const record of event.Records) {
-        // Check if the event is an INSERT event, indicating new data added to the source DynamoDB table.
+        const record = event.Records[0];
+        // Check if the event is an INSERT event
         if (record.eventName === "INSERT") {
             // Unmarshall the DynamoDB data to a regular JavaScript object.
             const newItem = unmarshall(record.dynamodb.NewImage);
             
             // Extract the bucket name and file name from the filePath attribute of the new item.
-            const parts = newItem.input_file_path.split('/');
-            const bucketName = parts[0];
-            const fileName = parts[parts.length - 1];
-            const inputText = newItem.input_text;
-            const ID = nanoid();
+            if (newItem.input_file_path){
+                const parts = newItem.input_file_path.split('/');
+                const bucketName = parts[0];
+                const fileName = parts[parts.length - 1];
+                const inputText = newItem.input_text;
+            
 
-            // Generate the output file name by prefixing the input file name.
-            const outPutFileName = "output.txt";
-
-            // Skip processing and exit the function if the input text indicates end of file (eof).
             if (inputText === "eof") {
                 console.log('No update required');
                 return;
@@ -49,16 +47,14 @@ exports.handler = async (event) => {
 
             const initScript = Buffer.from(userDataScript).toString('base64');
 
-            // Parameters for launching a new EC2 instance, including the AMI ID, instance type, and user data script.
+            // Parameters for launching a new EC2 instance
             const params = {
                 ImageId: 'ami-051f8a213df8bc089',
                 InstanceType: 't2.micro',
                 MinCount: 1,
                 MaxCount: 1,
                 UserData: initScript,
-                // IamInstanceProfile: {
-                //     Name: "EC2S3AccessRole" 
-                // },
+                
             };
 
             try {
@@ -68,15 +64,16 @@ exports.handler = async (event) => {
                 console.error("Error launching EC2 Instance: ", error);
                 throw error;
             }
-            console.log("DONE WITH INSTANCE")
+            bname = bucketName
+        }
 
-            // Parameters for inserting a new item into the DynamoDB table to indicate processing completion.
+            // Parameters for inserting a new item into the DynamoDB table
             const dbparams = {
                 TableName: tableName,
                 Item: {
                     pk: {S: ID},
                     id: {S: ID },
-                    output_file_path: {S: bucketName + "/" + outPutFileName },
+                    output_file_path: {S: bname + "/" + outPutFileName },
                     output_string: {S: "success"}
                 }
             }
@@ -84,6 +81,6 @@ exports.handler = async (event) => {
             await dynamoDB.send(new PutItemCommand(dbparams));
             console.log("Send command successful");
         }
-    }
+    
     
 };

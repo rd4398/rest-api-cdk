@@ -118,11 +118,6 @@ export class RestApiCdkStack extends cdk.Stack {
       apiKeyRequired: false,
     });
 
-    // Print the API URL
-    new cdk.CfnOutput(this, 'ApiEndpoint', {
-      value: api.url,
-    });
-
     // Create lambda to trigger VM after insert in dynamodb
 
   const dynamoDbStreamLambda = new NodejsFunction(this, 'DynamoStreamLambda', {
@@ -171,18 +166,6 @@ export class RestApiCdkStack extends cdk.Stack {
 
     dynamoDbStreamLambda.addToRolePolicy(ec2Permission);
     dynamoDbStreamLambda.addToRolePolicy(dynamoDbPermission);
-        // Since this lambda is used launch an Ec2 which in turn download files from S3 bucket,
-        // an IAM role 'EC2S3AccessRole' is created and passed to the Ec2 by this lambda at time this is launched
-    dynamoDbStreamLambda.role?.addToPrincipalPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ['iam:PassRole'],
-      resources: ['arn:aws:iam::471112532024:role/EC2S3AccessRole'],
-      conditions: {
-          StringEquals: {
-            'iam:PassedToService': 'ec2.amazonaws.com',
-          }
-        }
-    }));
 
   }
 }
